@@ -11,15 +11,15 @@ requirements:
       };
 
 
-inputs:
+inputs: 
 
-  alias:
+  alias: 
     type: string
     label: "Experiment short name/Alias"
     sd:preview:
       position: 1
 
-  fastq_file:
+  fastq_file: 
     type:
     - File
     - type: array
