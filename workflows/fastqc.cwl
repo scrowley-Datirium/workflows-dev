@@ -57,7 +57,7 @@ steps:
     out:
       - html_file
 
-  rename_fastqc_report:
+  rename_fastqc_report: 
     run: ../tools/rename.cwl
     in:
       source_file: run_fastqc/html_file
