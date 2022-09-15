@@ -67,7 +67,7 @@ steps:
     out: [target_file]
 
 
-$namespaces:
+$namespaces: 
   s: http://schema.org/ 
 
 $schemas:
