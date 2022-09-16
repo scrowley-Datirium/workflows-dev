@@ -67,8 +67,8 @@ steps:
     out: [target_file]
 
 
-$namespaces:
-  s: http://schema.org/
+$namespaces: 
+  s: http://schema.org/ 
 
 $schemas:
 - https://github.com/schemaorg/schemaorg/raw/main/data/releases/11.01/schemaorg-current-http.rdf
