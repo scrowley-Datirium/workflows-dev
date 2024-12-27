@@ -6,14 +6,14 @@ requirements:
 
 inputs:
 
-    script:
+    script_command:
         type: string?
         default: |
             #!/bin/bash
             if [[ "$0" -eq 0 ]]; then
                 printf "1" > scaling_factor.txt
             else
-                printf "$0" | awk '{printf("%.3f",10000/$0)}' > scaling_factor.txt
+                printf "$0" | awk '{printf("%.9f",10000/$0)}' > scaling_factor.txt
             fi
         inputBinding:
             position: 4
@@ -35,7 +35,7 @@ outputs:
             outputEval: |
                 ${
                     var s = self[0].contents;
-                    return parseInt(s);
+                    return parseFloat(s);
                 }
         doc: |
             Scaling factor (sf) for seq library normalization.
