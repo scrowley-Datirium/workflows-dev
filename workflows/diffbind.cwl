@@ -12,7 +12,8 @@ requirements:
   first_biological_condition:
     - "chipseq-se.cwl"
     - "chipseq-pe.cwl"
-    - "cutandrun-pe.cwl" 
+    - "cutandrun-macs2-pe.cwl"
+    - "cutandrun-seacr-pe.cwl"
     - "trim-chipseq-se.cwl"
     - "trim-chipseq-pe.cwl"
     - "trim-atacseq-se.cwl"
@@ -20,7 +21,8 @@ requirements:
   second_biological_condition:
     - "chipseq-se.cwl"
     - "chipseq-pe.cwl"
-    - "cutandrun-pe.cwl" 
+    - "cutandrun-macs2-pe.cwl"
+    - "cutandrun-seacr-pe.cwl"
     - "trim-chipseq-se.cwl"
     - "trim-chipseq-pe.cwl"
     - "trim-atacseq-se.cwl"
@@ -28,7 +30,8 @@ requirements:
   blocked_condition:
     - "chipseq-se.cwl"
     - "chipseq-pe.cwl"
-    - "cutandrun-pe.cwl" 
+    - "cutandrun-macs2-pe.cwl"
+    - "cutandrun-seacr-pe.cwl"
     - "trim-chipseq-se.cwl"
     - "trim-chipseq-pe.cwl"
     - "trim-atacseq-se.cwl"
@@ -192,11 +195,17 @@ inputs:
     doc: "Chromosome length file"
     'sd:upstreamSource': "genome_indices/chrom_length"   
 
-  fragmentsize:
+  rec_summits:
     type: int?
-    default: 125
-    label: "Reads extension size, bp"
-    doc: "Extended each read from its endpoint along the appropriate strand. Default: 125bp"
+    default: 200
+    label: "Width in bp to extend peaks around summits"
+    doc: |
+      Width in bp to extend peaks around their summits
+      in both directions and replace the original ones.
+      Set it to 100 bp for ATAC-Seq and 200 bp for
+      ChIP-Seq datasets. To skip peaks extension and
+      replacement, set it to negative value.
+      Default: 200 bp (results in 401 bp wide peaks)
     'sd:layout':
       advanced: true
 
@@ -224,27 +233,11 @@ inputs:
     'sd:layout':
       advanced: true
 
-  min_read_counts:
-    type: int?
-    default: 0
-    label: "Minimum read counts. Exclude intervals where MAX read counts for all samples < specified value"
-    doc: "Min read counts. Exclude all merged intervals where the MAX raw read counts among all of the samples is smaller than the specified value. Default: 0"
-    'sd:layout':
-      advanced: true
-
   use_common:
     type: boolean?
     default: false
     label: "Use common peaks within each condition. Ignore Minimum peakset overlap"
     doc: "Derive consensus peaks only from the common peaks within each condition. Min peakset overlap is ignored. Default: false"
-    'sd:layout':
-      advanced: true
-
-  remove_duplicates:
-    type: boolean?
-    default: false
-    label: "Remove duplicated reads"
-    doc: "Remove reads that map to exactly the same genomic position. Default: false"
     'sd:layout':
       advanced: true
 
@@ -302,7 +295,7 @@ outputs:
         tab: 'IGV Genome Browser'
         id: 'igvbrowser'
         type: 'wig'
-        name: "Genome coverage 1"
+        name: "Condition 1 genome coverage"
         height: 120
 
   genome_coverage_cond_2:
@@ -316,7 +309,7 @@ outputs:
         tab: 'IGV Genome Browser'
         id: 'igvbrowser'
         type: 'wig'
-        name: "Genome coverage 2"
+        name: "Condition 2 genome coverage"
         height: 120
 
   narrow_peaks_cond_1:
@@ -332,7 +325,7 @@ outputs:
         tab: 'IGV Genome Browser'
         id: 'igvbrowser'
         type: 'annotation'
-        name: "Called peaks 1"
+        name: "Condition 1 called peaks"
         displayMode: "COLLAPSE"
         height: 40
 
@@ -349,7 +342,7 @@ outputs:
         tab: 'IGV Genome Browser'
         id: 'igvbrowser'
         type: 'annotation'
-        name: "Called peaks 2"
+        name: "Condition 2 called peaks"
         displayMode: "COLLAPSE"
         height: 40
 
@@ -366,7 +359,7 @@ outputs:
         tab: 'IGV Genome Browser'
         id: 'igvbrowser'
         type: 'annotation'
-        name: "Called peaks 1"
+        name: "Condition 1 called peaks"
         displayMode: "COLLAPSE"
         height: 40
 
@@ -383,7 +376,7 @@ outputs:
         tab: 'IGV Genome Browser'
         id: 'igvbrowser'
         type: 'annotation'
-        name: "Called peaks 2"
+        name: "Condition 2 called peaks"
         displayMode: "COLLAPSE"
         height: 40
 
@@ -397,6 +390,20 @@ outputs:
       - syncfusiongrid:
           tab: 'Differential Peak Calling'
           Title: 'Differential Binding Analysis Results'
+
+  diffbind_report_file_formatted:
+    type: File
+    format: "http://edamontology.org/format_3475"
+    label: "Differential binding analysis results formatted as chip/atac/cutandrun results"
+    doc: "Differential binding analysis results formatted as chip/atac/cutandrun results exported as TSV"
+    outputSource: iaintersect_result_formatted/output_file_1
+
+  iaintersect_result:
+    type: File
+    format: "http://edamontology.org/format_3475"
+    label: "Differential binding analysis results formatted as chip/atac/cutandrun results"
+    doc: "Differential binding analysis results formatted as chip/atac/cutandrun results exported as TSV"
+    outputSource: iaintersect_result_formatted_for_setops/output_file_1
 
   diffbind_bed_file:
     type: File
@@ -665,14 +672,14 @@ outputs:
     doc: "Box plots of read distributions for significantly differentially bound sites"
     outputSource: select_files/selected_boxplot_pdf
 
-  diffbind_stdout_log:
+  diffbind_stdout_log_file:
     type: File
     format: "http://edamontology.org/format_2330"
     label: "diffbind stdout log"
     doc: "diffbind stdout log"
     outputSource: diffbind/stdout_log
 
-  diffbind_stderr_log:
+  diffbind_stderr_log_file:
     type: File
     format: "http://edamontology.org/format_2330"
     label: "diffbind stderr log"
@@ -730,14 +737,40 @@ steps:
             - File[]
       expression: |
         ${
-          return {
-            "coverage_files_cond_1": inputs.genome_coverage_files_cond_1,
-            "coverage_files_cond_2": inputs.genome_coverage_files_cond_2,
-            "n_peaks_files_cond_1": inputs.narrow_peaks_files_cond_1,
-            "n_peaks_files_cond_2": inputs.narrow_peaks_files_cond_2,
-            "b_peaks_files_cond_1": inputs.broad_peaks_files_cond_1,
-            "b_peaks_files_cond_2": inputs.broad_peaks_files_cond_2
-          };
+          var results = {};
+          var output_names = [
+            "coverage_files_cond_1",
+            "coverage_files_cond_2",
+            "n_peaks_files_cond_1",
+            "n_peaks_files_cond_2",
+            "b_peaks_files_cond_1",
+            "b_peaks_files_cond_2"
+          ];
+          var sources = [
+            inputs.genome_coverage_files_cond_1,
+            inputs.genome_coverage_files_cond_2,
+            inputs.narrow_peaks_files_cond_1,
+            inputs.narrow_peaks_files_cond_2,
+            inputs.broad_peaks_files_cond_1,
+            inputs.broad_peaks_files_cond_2
+          ];
+          for (var i = 0; i < sources.length; i++){
+            var current_source = sources[i];
+            var current_output_name = output_names[i];
+            results[current_output_name] = null;
+            if (current_source != null && current_source.length > 0){
+              for (var j = 0; j < current_source.length; j++){
+                    var new_item = current_source[j];
+                    new_item["basename"] = "u" + "_" + i + "_" + j+ "_" + new_item.basename;
+                    if (results[current_output_name] == null){
+                      results[current_output_name] = [new_item];
+                    } else {
+                      results[current_output_name].push(new_item);
+                    }
+              }
+            }
+          }
+          return results;
         }
     in:
       genome_coverage_files_cond_1: genome_coverage_files_cond_1
@@ -767,13 +800,11 @@ steps:
       sample_names_cond_2: sample_names_cond_2
       cutoff_value: cutoff_value
       cutoff_param: cutoff_param
-      fragmentsize: fragmentsize
-      remove_duplicates: remove_duplicates
       analysis_method: analysis_method
       blocked_attributes: blocked_attributes
       blocked_file: blocked_file
       min_overlap: min_overlap
-      min_read_counts: min_read_counts
+      rec_summits: rec_summits
       use_common: use_common
       threads: threads
       peakformat:
@@ -930,13 +961,73 @@ steps:
           rm iaintersect_result.tsv diffbind_result.tsv
     out: [output_file]
 
+  iaintersect_result_formatted:
+    run:
+      cwlVersion: v1.0
+      class: CommandLineTool
+      requirements:
+      - class: ScatterFeatureRequirement
+      - class: ShellCommandRequirement
+      inputs:
+        script:
+          type: string?
+          default: |
+            printf "refseq_id\tgene_id\ttxStart\ttxEnd\tstrand\tchrom\tstart\tend\tlength\tabssummit\tpileup\tlog10p\tfoldenrich\tlog10q\tregion\n" > iaintersect_result_formatted.tsv
+            awk -F'\t' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$7,$8,$9,"0","0","0","0","0","0","na")}' <(tail -n+2 $0) >> iaintersect_result_formatted.tsv
+          inputBinding:
+            position: 1
+        input_file_1:
+          type: File
+          inputBinding:
+            position: 2
+      outputs:
+        output_file_1:
+          type: File
+          outputBinding:
+            glob: iaintersect_result_formatted.tsv
+      baseCommand: ["bash", "-c"]
+    in:
+      input_file_1: restore_columns/output_file
+    out:
+    - output_file_1
+
+  iaintersect_result_formatted_for_setops:
+    run:
+      cwlVersion: v1.0
+      class: CommandLineTool
+      requirements:
+      - class: ScatterFeatureRequirement
+      - class: ShellCommandRequirement
+      inputs:
+        script:
+          type: string?
+          default: |
+            printf "refseq_id\tgene_id\ttxStart\ttxEnd\tstrand\tchrom\tstart\tend\tlength\tabssummit\tpileup\tlog10p\tfoldenrich\tlog10q\tregion\n" > iaintersect_result_formatted_for_setops.tsv
+            awk -F'\t' '{len=$9-$8+1; printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.0f\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$7,$8,$9,len,$8+(len/2),$10,$14,$13,$15,$6)}' <(tail -n+2 $0) >> iaintersect_result_formatted_for_setops.tsv
+          inputBinding:
+            position: 1
+        input_file_1:
+          type: File
+          inputBinding:
+            position: 2
+      outputs:
+        output_file_1:
+          type: File
+          outputBinding:
+            glob: iaintersect_result_formatted_for_setops.tsv
+      baseCommand: ["bash", "-c"]
+    in:
+      input_file_1: restore_columns/output_file
+    out:
+    - output_file_1
+
   convert_to_bed:
     run: ../tools/custom-bash.cwl
     in:
       input_file: restore_columns/output_file
       script:
         default: |
-          cat "$0" | awk -F "\t" 'NR==1 {for (i=1; i<=NF; i++) {ix[$i]=i} } NR>1 {color="255,0,0"; if ($ix["Fold"]<0) color="0,255,0"; print $ix["Chr"]"\t"$ix["Start"]"\t"$ix["End"]"\tPv="$ix["p-value"]";FDR="$ix["FDR"]"\t"1000"\t"$ix["Strand"]"\t"$ix["Start"]"\t"$ix["End"]"\t"color}' > `basename $0`
+          cat "$0" | awk -F "\t" 'NR==1 {for (i=1; i<=NF; i++) {ix[$i]=i} } NR>1 {color="255,0,0"; if ($ix["Fold"]<0) color="0,255,0"; print $ix["Chr"]"\t"$ix["Start"]"\t"$ix["End"]"\tPv="$ix["p-value"]+0.0";FDR="$ix["FDR"]+0.0"\t"1000"\t"$ix["Strand"]"\t"$ix["Start"]"\t"$ix["End"]"\t"color}' > `basename $0`
     out: [output_file]
 
   sort_bed:
@@ -947,15 +1038,29 @@ steps:
         default: ["1,1","2,2n"]
     out: [sorted_file]
 
+  overlap_with_chr_length:
+    run: ../tools/custom-bedops.cwl
+    in:
+      input_file:
+      - chrom_length_file
+      - sort_bed/sorted_file
+      script:
+        default: |
+          cat "$0" | awk '{print $1"\t0\t"$2}' | sort-bed - > temp_chrom_length.bed
+          cat "$1" | awk '$2 >= 0' > temp_sorted.bed
+          bedops --element-of 100% temp_sorted.bed temp_chrom_length.bed > `basename $1`
+          rm -f temp_chrom_length.bed temp_sorted.bed
+    out: [output_file]
+
   bed_to_bigbed:
     run: ../tools/ucsc-bedtobigbed.cwl
     in:
-      input_bed: sort_bed/sorted_file
+      input_bed: overlap_with_chr_length/output_file
       bed_type:
         default: "bed4+5"
       chrom_length_file: chrom_length_file
       output_filename:
-        source: sort_bed/sorted_file
+        source: overlap_with_chr_length/output_file
         valueFrom: $(self.basename.split('.').slice(0,-1).join('.') + ".bigBed")
     out: [bigbed_file]
 

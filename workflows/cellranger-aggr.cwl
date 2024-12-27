@@ -9,42 +9,72 @@ requirements:
 - class: MultipleInputFeatureRequirement
 
 
-'sd:upstream':
-  sc_rnaseq_sample:
+"sd:upstream":
+  sc_experiment:
   - "single-cell-preprocess-cellranger.cwl"
+  - "cellranger-multi.cwl"
 
 
 inputs:
 
   alias:
     type: string
-    label: "Experiment short name/Alias"
+    label: "Experiment short name/alias"
     sd:preview:
       position: 1
 
   molecule_info_h5:
-    type: File[]
-    label: "scRNA-Seq Cell Ranger Experiment"
-    doc: "Molecule-level information from individual runs of cellranger count"
-    'sd:upstreamSource': "sc_rnaseq_sample/molecule_info_h5"
-    'sd:localLabel': true
+    type:
+    - "null"
+    -  File[]
+    label: "Cell Ranger RNA or RNA+VDJ Sample"
+    doc: |
+      Any "Cell Ranger RNA or RNA+VDJ Sample"
+      that produces gene expression and,
+      optionally, V(D)J contigs data, from a
+      single 10x Genomics library
+    "sd:upstreamSource": "sc_experiment/molecule_info_h5"
+    "sd:localLabel": true
+
+  filtered_data_folder:
+    type:
+    - "null"
+    - Directory[]
+    "sd:upstreamSource": "sc_experiment/filtered_data_folder"
 
   gem_well_labels:
     type: string[]
-    label: "scRNA-Seq Cell Ranger Experiment"
-    doc: "Array of GEM well identifiers to be used for labeling purposes only"
-    'sd:upstreamSource': "sc_rnaseq_sample/alias"
-    'sd:localLabel': true
+    "sd:upstreamSource": "sc_experiment/alias"
 
   normalization_mode:
     type:
     - "null"
     - type: enum
-      symbols: ["none", "mapped"]
-    default: "mapped"
+      symbols:
+      - "none"
+      - "mapped"
+    default: "none"
     label: "Library depth normalization mode"
     doc: "Library depth normalization mode"
-    'sd:layout':
+    "sd:layout":
+      advanced: true
+
+  clonotype_grouping:
+    type:
+    - "null"
+    - type: enum
+      name: "clonotype_grouping"
+      symbols:
+      - "same_donor_different_origins"
+      - "same_donor_and_origin"
+      - "different_donors"
+    default: "different_donors"
+    label: "Clonotype grouping. Ignored if upstream analysis doesn't include V(D)J data"
+    doc: |
+      When cellranger aggr is called with cellranger multi outputs, there are three
+      ways it can process the datasets depending on the combination of donor and
+      origin values
+    "sd:layout":
       advanced: true
 
   threads:
@@ -52,7 +82,7 @@ inputs:
     default: 4
     label: "Number of threads"
     doc: "Number of threads for those steps that support multithreading"
-    'sd:layout':
+    "sd:layout":
       advanced: true
 
   memory_limit:
@@ -60,7 +90,7 @@ inputs:
     default: 30
     label: "Maximum memory used (GB)"
     doc: "Maximum memory used (GB). The same will be applied to virtual memory"
-    'sd:layout':
+    "sd:layout":
       advanced: true
 
 
@@ -70,108 +100,136 @@ outputs:
     type: File
     outputSource: aggregate_counts/web_summary_report
     label: "Aggregated run summary metrics and charts in HTML format"
-    doc: |
-      Aggregated run summary metrics and charts in HTML format
-    'sd:visualPlugins':
+    doc: "Aggregated run summary metrics and charts in HTML format"
+    "sd:visualPlugins":
     - linkList:
-        tab: 'Overview'
+        tab: "Overview"
         target: "_blank"
 
   metrics_summary_report_json:
     type: File
     outputSource: aggregate_counts/metrics_summary_report_json
-    label: "Aggregated run summary metrics in JSON format"
-    doc: |
-      Aggregated run summary metrics in JSON format
+    label: "Aggregated GEX run summary metrics in JSON format"
+    doc: "Aggregated GEX run summary metrics in JSON format"
 
   secondary_analysis_report_folder:
     type: File
     outputSource: compress_secondary_analysis_report_folder/compressed_folder
     label: "Compressed folder with aggregated secondary analysis results"
     doc: |
-      Compressed folder with secondary analysis results including dimensionality reduction,
-      cell clustering, and differential expression of aggregated results
+      Compressed folder with secondary analysis of GEX data including dimensionality
+      reduction, cell clustering, and differential expression
 
   filtered_feature_bc_matrix_folder:
     type: File
     outputSource: compress_filtered_feature_bc_matrix_folder/compressed_folder
     label: "Compressed folder with aggregated filtered feature-barcode matrices"
     doc: |
-      Compressed folder with aggregated filtered feature-barcode matrices containing only cellular barcodes in MEX format
+      Compressed folder with aggregated filtered feature-barcode matrices
+      containing only cellular barcodes in MEX format
 
   filtered_feature_bc_matrix_h5:
     type: File
     outputSource: aggregate_counts/filtered_feature_bc_matrix_h5
     label: "Aggregated filtered feature-barcode matrices in HDF5 format"
     doc: |
-      Aggregated filtered feature-barcode matrices containing only cellular barcodes in HDF5 format
-  
-  raw_feature_bc_matrices_folder:
-    type: File
-    outputSource: compress_raw_feature_bc_matrices_folder/compressed_folder
-    label: "Compressed folder with aggregated unfiltered feature-barcode matrices"
-    doc: |
-      Compressed folder with aggregated unfiltered feature-barcode matrices containing all barcodes in MEX format
-
-  raw_feature_bc_matrices_h5:
-    type: File
-    outputSource: aggregate_counts/raw_feature_bc_matrices_h5
-    label: "Aggregated unfiltered feature-barcode matrices in HDF5 format"
-    doc: |
-      Aggregated unfiltered feature-barcode matrices containing all barcodes in HDF5 format
-
-  loupe_browser_track:
-    type: File
-    outputSource: aggregate_counts/loupe_browser_track
-    label: "Loupe Browser visualization and analysis file for aggregated results"
-    doc: |
-      Loupe Browser visualization and analysis file for aggregated results
+      Filtered feature-barcode matrices containing only cellular
+      barcodes in HDF5 format
 
   aggregation_metadata:
     type: File
     outputSource: aggregate_counts/aggregation_metadata
     label: "Aggregation metadata in CSV format"
-    doc: |
-      Aggregation metadata in CSV format
+    doc: "Aggregation metadata in CSV format"
 
-  aggregate_counts_stdout_log:
+  grouping_data:
     type: File
-    outputSource: aggregate_counts/stdout_log
-    label: "stdout log generated by cellranger aggr"
-    doc: |
-      stdout log generated by cellranger aggr
+    outputSource: aggregate_counts/grouping_data
+    label: "Example of datasets grouping"
+    doc: "Example of TSV file to define datasets grouping"
 
-  aggregate_counts_stderr_log:
+  loupe_browser_track:
     type: File
-    outputSource: aggregate_counts/stderr_log
-    label: "stderr log generated by cellranger aggr"
+    outputSource: aggregate_counts/loupe_browser_track
+    label: "Loupe Browser visualization and analysis file"
+    doc: "Loupe Browser visualization and analysis file"
+
+  clonotypes_csv:
+    type: File?
+    outputSource: aggregate_counts/clonotypes_csv
+    label: "CSV file with high-level descriptions of each clonotype"
+    doc: "CSV file with high-level descriptions of each clonotype"
+    "sd:visualPlugins":
+    - syncfusiongrid:
+        tab: "V(D)J clonotypes"
+        Title: "V(D)J clonotypes"
+
+  consensus_sequences_fasta:
+    type: File?
+    outputSource: aggregate_counts/consensus_sequences_fasta
+    label: "The consensus sequence of each assembled contig"
+    doc: "The consensus sequence of each assembled contig"
+
+  consensus_annotations_csv:
+    type: File?
+    outputSource: aggregate_counts/consensus_annotations_csv
+    label: "CSV file with high-level and detailed annotations of each clonotype consensus sequence"
+    doc: "CSV file with high-level and detailed annotations of each clonotype consensus sequence"
+
+  filtered_contig_annotations_csv:
+    type: File?
+    outputSource: aggregate_counts/filtered_contig_annotations_csv
+    label: "CSV file with high-level annotations of each high-confidence contig from cell-associated barcodes"
+    doc: "CSV file with high-level annotations of each high-confidence contig from cell-associated barcodes"
+
+  loupe_vdj_browser_track:
+    type: File?
+    outputSource: aggregate_counts/loupe_vdj_browser_track
+    label: "Loupe V(D)J Browser visualization and analysis file"
+    doc: "Loupe V(D)J Browser visualization and analysis file"
+
+  airr_rearrangement_tsv:
+    type: File?
+    outputSource: aggregate_counts/airr_rearrangement_tsv
+    label: "Annotated contigs and consensus sequences of V(D)J rearrangements in the AIRR format"
     doc: |
-      stderr log generated by cellranger aggr
+      Annotated contigs and consensus sequences of V(D)J
+      rearrangements in the AIRR format. It includes only
+      viable cells identified by both V(D)J and RNA algorithms.
 
   compressed_html_data_folder:
     type: File
     outputSource: compress_html_data_folder/compressed_folder
     label: "Compressed folder with CellBrowser formatted results"
-    doc: |
-      Compressed folder with CellBrowser formatted results
+    doc: "Compressed folder with CellBrowser formatted results"
 
   html_data_folder:
     type: Directory
     outputSource: cellbrowser_build/html_data
     label: "Folder with not compressed CellBrowser formatted results"
-    doc: |
-      Folder with not compressed CellBrowser formatted results
+    doc: "Folder with not compressed CellBrowser formatted results"
 
   cellbrowser_report:
     type: File
     outputSource: cellbrowser_build/index_html_file
     label: "CellBrowser formatted Cellranger report"
-    doc: |
-      CellBrowser formatted Cellranger report
-    'sd:visualPlugins':
+    doc: "CellBrowser formatted Cellranger report"
+    "sd:visualPlugins":
     - linkList:
-        tab: 'Overview'
+        tab: "Overview"
         target: "_blank"
+
+  aggregate_counts_stdout_log:
+    type: File
+    outputSource: aggregate_counts/stdout_log
+    label: "stdout log generated by cellranger aggr"
+    doc: "stdout log generated by cellranger aggr"
+
+  aggregate_counts_stderr_log:
+    type: File
+    outputSource: aggregate_counts/stderr_log
+    label: "stderr log generated by cellranger aggr"
+    doc: "stderr log generated by cellranger aggr"
 
 
 steps:
@@ -180,8 +238,10 @@ steps:
     run: ../tools/cellranger-aggr.cwl
     in:
       molecule_info_h5: molecule_info_h5
+      filtered_data_folder: filtered_data_folder
       gem_well_labels: gem_well_labels
       normalization_mode: normalization_mode
+      clonotype_grouping: clonotype_grouping
       threads: threads
       memory_limit: memory_limit
       virt_memory_limit: memory_limit
@@ -191,10 +251,15 @@ steps:
     - secondary_analysis_report_folder
     - filtered_feature_bc_matrix_folder
     - filtered_feature_bc_matrix_h5
-    - raw_feature_bc_matrices_folder
-    - raw_feature_bc_matrices_h5
     - aggregation_metadata
+    - grouping_data
     - loupe_browser_track
+    - clonotypes_csv
+    - consensus_sequences_fasta
+    - consensus_annotations_csv
+    - filtered_contig_annotations_csv
+    - loupe_vdj_browser_track
+    - airr_rearrangement_tsv
     - stdout_log
     - stderr_log
 
@@ -202,13 +267,6 @@ steps:
     run: ../tools/tar-compress.cwl
     in:
       folder_to_compress: aggregate_counts/filtered_feature_bc_matrix_folder
-    out:
-    - compressed_folder
-
-  compress_raw_feature_bc_matrices_folder:
-    run: ../tools/tar-compress.cwl
-    in:
-      folder_to_compress: aggregate_counts/raw_feature_bc_matrices_folder
     out:
     - compressed_folder
 
@@ -243,9 +301,9 @@ $namespaces:
 $schemas:
 - https://github.com/schemaorg/schemaorg/raw/main/data/releases/11.01/schemaorg-current-http.rdf
 
-label: "Cell Ranger Aggregate"
-s:name: "Cell Ranger Aggregate"
-s:alternateName: "Aggregates data from multiple Cell Ranger Count Gene Expression experiments"
+label: "Cell Ranger Aggregate (RNA, RNA+VDJ)"
+s:name: "Cell Ranger Aggregate (RNA, RNA+VDJ)"
+s:alternateName: "Combines outputs from multiple runs of either Cell Ranger Count (RNA) or Cell Ranger Count (RNA+VDJ) pipelines"
 
 s:downloadUrl: https://raw.githubusercontent.com/datirium/workflows/master/workflows/cellranger-aggr.cwl
 s:codeRepository: https://github.com/datirium/workflows
@@ -283,5 +341,9 @@ s:creator:
 
 
 doc: |
-  Cell Ranger Aggregate
-  =====================
+  Cell Ranger Aggregate (RNA, RNA+VDJ)
+
+  Combines outputs from multiple runs of either “Cell Ranger Count (RNA)”
+  or “Cell Ranger Count (RNA+VDJ)” pipelines. The results of this workflow
+  are primarily used in “Single-Cell RNA-Seq Filtering Analysis” and
+  “Single-Cell Immune Profiling Analysis” pipelines.

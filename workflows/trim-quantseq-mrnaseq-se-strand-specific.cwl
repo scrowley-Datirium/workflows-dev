@@ -44,9 +44,7 @@ inputs:
   annotation_file:
     type: File
     label: "Annotation file"
-    format:
-      - "http://edamontology.org/format_2306"
-      - "http://edamontology.org/format_3475"
+    format: "http://edamontology.org/format_3475"
     'sd:upstreamSource': "genome_indices/annotation"
     doc: "GTF or TAB-separated annotation file"
 
@@ -62,7 +60,7 @@ inputs:
     - File
     - type: array
       items: File
-    label: "FASTQ input file"
+    label: "FASTQ input file(s)"
     format: "http://edamontology.org/format_1930"
     doc: "Reads data in a FASTQ format"
 
@@ -255,7 +253,7 @@ outputs:
   #   doc: "Common TSS expression"
   #   outputSource: group_transcript_expression/common_tss_expression_file
 
-  geep_gene_expression_file:
+  rpkm_genes:
     type: File
     format: "http://edamontology.org/format_3475"
     label: "GEEP: expression grouped by gene name"
@@ -419,6 +417,8 @@ steps:
     run: ../tools/extract-fastq.cwl
     in:
       compressed_file: fastq_file
+      output_prefix:
+        default: "read_1"
     out:
     - fastq_file
 
@@ -889,4 +889,4 @@ s:creator:
 
 
 doc: |
-  ### Devel version of QuantSeq 3' FWD, FWD-UMI or REV for single-read mRNA-Seq data 
+  ### QuantSeq 3' FWD, FWD-UMI or REV for single-read mRNA-Seq data

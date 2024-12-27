@@ -27,6 +27,8 @@ requirements:
     - "trim-rnaseq-se.cwl"
     - "trim-rnaseq-pe-dutp.cwl"
     - "trim-rnaseq-se-dutp.cwl"
+    - "trim-quantseq-mrnaseq-se-strand-specific.cwl"
+    - "kallisto-quant-pe.cwl"
 
 
 inputs:
@@ -95,30 +97,35 @@ inputs:
 
   reduced_formula:
     type: string?
-    label: "Reduced formula. If provided, use LRT instead of Wald."
+    default: "~ 1"
+    label: "Reduced formula. If removed, force to use Wald instead of LRT."
     doc: |
       Reduced formula with the term(s) of interest removed.
-      Should start with ~. If provided, force DESeq2 to run
-      LRT test instead of the Wald.
+      Should start with ~. If design formula includes only
+      one criteria, use ~ 1. If removed, forces DESeq2 to run
+      Wald test instead of the LRT.
 
   contrast:
     type: string?
-    label: "Contrast. If not provided, use the last term from the design formula."
+    label: "Contrast. If not provided, use all possible combinations"
     doc: |
       Contrast to be be applied for the output, formatted as
       a mathematical formula of values from the --metadata table.
-      If not provided, the last term from the design formula will
-      be used.
+      If not provided, all possible combinations of values from
+      the metadata columns present in the --design will be used
+      (results will be merged giving the priority to significantly
+      differentially expressed genes with higher absolute
+      log2FoldChange values).
 
   remove:
     type: string?
-    label: "Column from the metadata file to remove batch effect when exporting feature counts"
+    label: "Column from the metadata file to remove batch effect"
     doc: |
-      Column from the metadata file to remove batch effect when
-      exporting feature counts. All components that include this
-      term will be removed from the design formula when correcting
-      for batch effect. Default: do not remove batch effect from
-      the exported counts
+      Column from the metadata file to remove batch effect
+      before running differential expression analysis. If
+      present, all components that include this term will be
+      removed from the design and reduced formulas.
+      Default: do not remove batch effect
 
   base:
     type: string?
@@ -149,25 +156,14 @@ inputs:
       symbols:
       - "vst"
       - "rlog"
-    default: "vst"
+    default: "rlog"
     label: "Read counts normalization for the exploratory visualization analysis"
     doc: |
       Read counts normalization for the exploratory visualization analysis.
       Use 'vst' for medium-to-large datasets (n > 30) and 'rlog' for
       small datasets (n < 30), when there is a wide range of sequencing
       depth across samples.
-      Default: vst
-    'sd:layout':
-      advanced: true
-
-  center_row:
-    type: boolean?
-    default: false
-    label: "Apply mean centering for feature expression prior to running clustering by row"
-    doc: |
-      Apply mean centering for feature expression prior to running
-      clustering by row. Ignored when --cluster is not row or both.
-      Default: do not centered
+      Default: rlog
     'sd:layout':
       advanced: true
 
@@ -255,23 +251,45 @@ inputs:
     'sd:layout':
       advanced: true
 
-  threads:
-    type: int?
-    default: 1
-    label: "Number of cores/cpus to use"
-    doc: "Number of cores/cpus to use. Default: 1"
+  minimum_logfc:
+    type: float?
+    default: 0
+    label: "Minimum log2FoldChange to show features in the exploratory visualization analysis"
+    doc: |
+      In the exploratory visualization analysis output only features with
+      absolute log2FoldChange bigger or equal to this value. Default: 0
     'sd:layout':
+      advanced: true
+
+  threads:
+    type:
+    - "null"
+    - type: enum
+      symbols:
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+    default: "1"
+    label: "Cores/CPUs"
+    doc: |
+      Parallelization parameter to define the
+      number of cores/CPUs that can be utilized
+      simultaneously.
+      Default: 1
+    "sd:layout":
       advanced: true
 
 
 outputs:
 
-  diff_expr_features:
+  diff_expr_file:
     type: File
     outputSource: deseq_multi_factor/diff_expr_features
     label: "TSV file with not filtered differentially expressed features"
     doc: |
-      TSV file with not filtered differentially expressed features
+      TSV file with not filtered differentially
+      expressed features
     'sd:visualPlugins':
     - syncfusiongrid:
         tab: 'DE features'
@@ -282,15 +300,16 @@ outputs:
     outputSource: deseq_multi_factor/read_counts_gct
     label: "GCT file with normalized, optionally batch corrected, read counts"
     doc: |
-      GCT file with normalized, optionally batch corrected, read counts
+      GCT file with normalized, optionally batch
+      corrected, read counts
 
   mds_plot_html:
     type: File?
     outputSource: deseq_multi_factor/mds_plot_html
-    label: "MDS plot of normalized counts"
+    label: "MDS plot of normalized, optionally batch corrected, read counts"
     doc: |
-      MDS plot of normalized counts. Optionally batch corrected
-      based on the --remove value.
+      MDS plot of normalized, optionally batch
+      corrected, read counts.
       HTML format
     'sd:visualPlugins':
     - linkList:
@@ -302,7 +321,8 @@ outputs:
     outputSource: deseq_multi_factor/volcano_plot_png
     label: "Volcano plot of differentially expressed features"
     doc: |
-      Volcano plot of differentially expressed features.
+      Volcano plot of differentially expressed
+      features.
       PNG format
     'sd:visualPlugins':
     - image:
@@ -312,40 +332,53 @@ outputs:
   pca_plot_png:
     type: File?
     outputSource: deseq_multi_factor/pca_plot_png
-    label: "PCA plot of normalized counts based on the top 500 features with the highest row variance"
+    label: "PCA plot of normalized, optionally batch corrected, read counts"
     doc: |
-      PCA plot of normalized counts based on the top 500
-      features selected by the highest row variance
+      PCA plot of normalized, optionally batch
+      corrected, read counts based on the top
+      500 features selected by the highest row
+      variance
       PNG format
     'sd:visualPlugins':
     - image:
         tab: 'Plots'
-        Caption: 'PCA plot of normalized counts based on the top 500 features with the highest row variance'
+        Caption: 'PCA plot of normalized, optionally batch corrected, read counts'
 
   volcano_plot_html_file:
     type: File
     outputSource: make_volcano_plot/html_file
     label: "Volcano Plot"
     doc: |
-      HTML index file with volcano plot data.
+      HTML index file for Volcano Plot
     'sd:visualPlugins':
     - linkList:
         tab: 'Overview'
         target: "_blank"
 
-  volcano_plot_css_file:
-    type: File
-    outputSource: make_volcano_plot/css_file
-    label: "Volcano Plot CSS"
+  volcano_plot_html_data:
+    type: Directory
+    outputSource: make_volcano_plot/html_data
+    label: "Directory html data for Volcano Plot"
     doc: |
-      CSS index file with volcano plot data.
+      Directory html data for Volcano Plot
 
-  volcano_plot_js_file:
+  ma_plot_html_file:
     type: File
-    outputSource: make_volcano_plot/js_file
-    label: "Volcano Plot JS"
+    outputSource: make_ma_plot/html_file
+    label: "MA-plot"
     doc: |
-      JS index file with volcano plot data.
+      HTML index file for MA-plot
+    'sd:visualPlugins':
+    - linkList:
+        tab: 'Overview'
+        target: "_blank"
+
+  ma_plot_html_data:
+    type: Directory
+    outputSource: make_ma_plot/html_data
+    label: "Directory html data for Volcano Plot"
+    doc: |
+      Directory html data for MA-plot
 
   heatmap_html:
     type: File
@@ -358,13 +391,13 @@ outputs:
         tab: 'Overview'
         target: "_blank"
 
-  deseq_stdout_log:
+  deseq_stdout_log_file:
     type: File
     outputSource: deseq_multi_factor/stdout_log
     label: "DESeq stdout log"
     doc: "DESeq stdout log"
 
-  deseq_stderr_log:
+  deseq_stderr_log_file:
     type: File
     outputSource: deseq_multi_factor/stderr_log
     label: "DESeq stderr log"
@@ -423,12 +456,16 @@ steps:
         valueFrom: $(self=="none"?null:self)
       row_distance: row_distance
       column_distance: column_distance
-      center_row: center_row
+      center_row:
+        default: true
       selected_features:
         source: selected_features
         valueFrom: $(split_by_common_delim(self))
       maximum_padj: maximum_padj
-      threads: threads
+      minimum_logfc: minimum_logfc
+      threads:
+        source: threads
+        valueFrom: $(parseInt(self))
     out:
     - diff_expr_features
     - read_counts_gct
@@ -439,7 +476,7 @@ steps:
     - stderr_log
 
   make_volcano_plot:
-    run: ../tools/volcanot-plot.cwl
+    run: ../tools/volcano-plot.cwl
     in:
       diff_expr_file: deseq_multi_factor/diff_expr_features
       x_axis_column:
@@ -447,19 +484,24 @@ steps:
       y_axis_column:
         default: "padj"
       label_column:
-        source: feature_type
-        valueFrom: |
-          ${
-              if (self == "transcript") {
-                return "feature";
-              } else {
-                return "GeneId";
-              }
-          }
+        default: "feature"
     out:
-      - html_file
-      - css_file
-      - js_file
+    - html_data
+    - html_file
+
+  make_ma_plot:
+    run: ../tools/ma-plot.cwl
+    in:
+      diff_expr_file: deseq_multi_factor/diff_expr_features
+      x_axis_column:
+        default: "baseMean"
+      y_axis_column:
+        default: "log2FoldChange"
+      label_column:
+        default: "feature"
+    out:
+    - html_data
+    - html_file
 
   morpheus_heatmap:
     run: ../tools/morpheus-heatmap.cwl

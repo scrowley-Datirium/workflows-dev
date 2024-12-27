@@ -9,420 +9,543 @@ requirements:
   - class: MultipleInputFeatureRequirement
 
 
-'sd:upstream':
+"sd:upstream":
   genome_indices:
-    - "cellranger-mkref.cwl"
+  - "cellranger-mkref.cwl"
 
 
 inputs:
 
   alias:
     type: string
-    label: "Experiment short name/Alias"
+    label: "Analysis name"
     sd:preview:
       position: 1
 
   indices_folder:
     type: Directory
-    label: "Genome Type"
-    doc: "Cell Ranger ARC generated genome indices folder"
-    'sd:upstreamSource': "genome_indices/arc_indices_folder"
-    'sd:localLabel': true
+    label: "Cell Ranger Reference Sample"
+    doc: |
+      Any "Cell Ranger Reference Sample" that
+      builds a reference genome package of a
+      selected species for quantifying gene
+      expression and chromatin accessibility.
+      This sample can be obtained from "Cell
+      Ranger Reference (RNA, ATAC, RNA+ATAC)"
+      pipeline.
+    "sd:upstreamSource": "genome_indices/arc_indices_folder"
+    "sd:localLabel": true
 
-  gex_fastq_file_r1:
+  annotation_gtf_file:
+    type: File
+    "sd:upstreamSource": "genome_indices/genome_indices/annotation_gtf"
+
+  memory_limit:
+    type: int?
+    default: 20
+    "sd:upstreamSource": "genome_indices/memory_limit"
+
+  rna_fastq_file_r1:
     type:
     - File
     - type: array
       items: File
-    format: "http://edamontology.org/format_1930"
-    label: "GEX FASTQ file R1 (optionally compressed)"
-    doc: "GEX FASTQ file R1 (optionally compressed)"
+    label: "RNA FASTQ, Read 1"
+    doc: |
+      Optionally compressed FASTQ file
+      with Read 1 (10x barcode and UMI)
+      single-cell RNA sequencing data.
+      If multiple files provided they
+      will be merged.
 
-  gex_fastq_file_r2:
+  rna_fastq_file_r2:
     type:
     - File
     - type: array
       items: File
-    format: "http://edamontology.org/format_1930"
-    label: "GEX FASTQ file R2 (optionally compressed)"
-    doc: "GEX FASTQ file R2 (optionally compressed)"
+    label: "RNA FASTQ, Read 2"
+    doc: |
+      Optionally compressed FASTQ file
+      with Read 2 (cDNA insert) single-cell
+      RNA sequencing data. If multiple
+      files provided they will be merged.
 
   atac_fastq_file_r1:
     type:
     - File
     - type: array
       items: File
-    format: "http://edamontology.org/format_1930"
-    label: "ATAC FASTQ file R1 (optionally compressed)"
-    doc: "ATAC FASTQ file R1 (optionally compressed)"
+    label: "ATAC FASTQ, Read 1"
+    doc: |
+      Optionally compressed FASTQ file
+      with Read 1 (transposed DNA)
+      single-cell ATAC sequencing data.
+      If multiple files provided they
+      will be merged.
 
   atac_fastq_file_r2:
     type:
     - File
     - type: array
       items: File
-    format: "http://edamontology.org/format_1930"
-    label: "ATAC FASTQ file R2 (optionally compressed)"
-    doc: "ATAC FASTQ file R2 (optionally compressed)"
+    label: "ATAC FASTQ, Read 2"
+    doc: |
+      Optionally compressed FASTQ file
+      with Read 2 (10x barcode)
+      single-cell ATAC sequencing data.
+      If multiple files provided they
+      will be merged.
 
   atac_fastq_file_r3:
     type:
     - File
     - type: array
       items: File
-    format: "http://edamontology.org/format_1930"
-    label: "ATAC FASTQ file R3 (optionally compressed)"
-    doc: "ATAC FASTQ file R3 (optionally compressed)"
+    label: "ATAC FASTQ, Read 3"
+    doc: |
+      Optionally compressed FASTQ file
+      with Read 3 (transposed DNA)
+      single-cell ATAC sequencing data.
+      If multiple files provided they
+      will be merged.
 
   exclude_introns:
     type: boolean?
     default: false
-    label: "Disable counting of intronic reads"
+    label: "Do not count intronic reads"
     doc: |
-      Disable counting of intronic reads. In this mode, only reads that are exonic
-      and compatible with annotated splice junctions in the reference are counted.
-      Note: using this mode will reduce the UMI counts in the feature-barcode matrix
-    'sd:layout':
+      Exclude intronic reads when counting
+      gene expression. In this mode, only
+      reads that are exonic and compatible
+      with annotated splice junctions in
+      the reference are counted. Using this
+      mode will reduce the UMI counts and
+      decrease sensitivity.
+    "sd:layout":
       advanced: true
 
   threads:
-    type: int?
-    default: 4
-    label: "Number of threads"
-    doc: "Number of threads for those steps that support multithreading"
-    'sd:layout':
-      advanced: true
-
-  memory_limit:
-    type: int?
-    default: 20
-    label: "Genome Type"
+    type:
+    - "null"
+    - type: enum
+      symbols:
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+    default: "4"
+    label: "Cores/CPUs"
     doc: |
-      Maximum memory used (GB).
-      The same as was used for generating indices.
-      The same will be applied to virtual memory
-    'sd:upstreamSource': "genome_indices/memory_limit"
-    'sd:localLabel': true
+      Parallelization parameter to define the
+      number of cores/CPUs that can be utilized
+      simultaneously.
+      Default: 4
+    "sd:layout":
+      advanced: true
 
 
 outputs:
 
-  fastqc_report_gex_fastq_r1:
+  web_summary_report:
     type: File
-    outputSource: run_fastqc_for_gex_fastq_r1/html_file
-    label: "FastqQC report for GEX FASTQ file R1"
+    outputSource: generate_counts_matrix/web_summary_report
+    label: "Cell Ranger Summary"
     doc: |
-      FastqQC report for GEX FASTQ file R1
-    'sd:visualPlugins':
+      Report generated by Cell Ranger
+    "sd:visualPlugins":
     - linkList:
-        tab: 'Overview'
+        tab: "Overview"
         target: "_blank"
 
-  fastqc_report_gex_fastq_r2:
+  cellbrowser_report:
     type: File
-    outputSource: run_fastqc_for_gex_fastq_r2/html_file
-    label: "FastqQC report for GEX FASTQ file R2"
+    outputSource: cellbrowser_build/index_html_file
+    label: "UCSC Cell Browser"
     doc: |
-      FastqQC report for GEX FASTQ file R2
-    'sd:visualPlugins':
+      UCSC Cell Browser HTML index file
+    "sd:visualPlugins":
     - linkList:
-        tab: 'Overview'
+        tab: "Overview"
+        target: "_blank"
+
+  fastqc_report_rna_fastq_r1:
+    type: File
+    outputSource: run_fastqc_for_rna_fastq_r1/html_file
+    label: "QC report (RNA FASTQ, Read 1)"
+    doc: |
+      FastqQC report generated for
+      RNA FASTQ file, Read 1
+    "sd:visualPlugins":
+    - linkList:
+        tab: "Overview"
+        target: "_blank"
+
+  fastqc_report_rna_fastq_r2:
+    type: File
+    outputSource: run_fastqc_for_rna_fastq_r2/html_file
+    label: "QC report (RNA FASTQ, Read 2)"
+    doc: |
+      FastqQC report generated for
+      RNA FASTQ file, Read 2
+    "sd:visualPlugins":
+    - linkList:
+        tab: "Overview"
         target: "_blank"
 
   fastqc_report_atac_fastq_r1:
     type: File
     outputSource: run_fastqc_for_atac_fastq_r1/html_file
-    label: "FastqQC report for ATAC FASTQ file R1"
+    label: "QC report (ATAC FASTQ, Read 1)"
     doc: |
-      FastqQC report for ATAC FASTQ file R1
-    'sd:visualPlugins':
+      FastqQC report generated for
+      ATAC FASTQ file, Read 1
+    "sd:visualPlugins":
     - linkList:
-        tab: 'Overview'
+        tab: "Overview"
         target: "_blank"
 
   fastqc_report_atac_fastq_r2:
     type: File
     outputSource: run_fastqc_for_atac_fastq_r2/html_file
-    label: "FastqQC report for ATAC FASTQ file R2"
+    label: "QC report (ATAC FASTQ, Read 2)"
     doc: |
-      FastqQC report for ATAC FASTQ file R2
-    'sd:visualPlugins':
+      FastqQC report generated for
+      ATAC FASTQ file, Read 2
+    "sd:visualPlugins":
     - linkList:
-        tab: 'Overview'
+        tab: "Overview"
         target: "_blank"
 
   fastqc_report_atac_fastq_r3:
     type: File
     outputSource: run_fastqc_for_atac_fastq_r3/html_file
-    label: "FastqQC report for ATAC FASTQ file R3"
+    label: "QC report (ATAC FASTQ, Read 3)"
     doc: |
-      FastqQC report for ATAC FASTQ file R3
-    'sd:visualPlugins':
+      FastqQC report generated for
+      ATAC FASTQ file, Read 3
+    "sd:visualPlugins":
     - linkList:
-        tab: 'Overview'
-        target: "_blank"
-
-  web_summary_report:
-    type: File
-    outputSource: generate_counts_matrix/web_summary_report
-    label: "Cell Ranger summary"
-    doc: |
-      Cell Ranger summary
-    'sd:visualPlugins':
-    - linkList:
-        tab: 'Overview'
+        tab: "Overview"
         target: "_blank"
 
   metrics_summary_report:
     type: File
     outputSource: generate_counts_matrix/metrics_summary_report
-    label: "Run summary metrics in CSV format"
+    label: "Run summary metrics"
     doc: |
-      Run summary metrics in CSV format
+      Cell Ranger generated run summary
+      metrics in CSV format
 
   barcode_metrics_report:
     type: File
     outputSource: generate_counts_matrix/barcode_metrics_report
-    label: "ATAC and GEX barcode metrics in CSV format"
+    label: "ATAC and RNA barcode metrics"
     doc: |
-      ATAC and GEX read count summaries generated for every
-      barcode observed in the experiment. The columns contain
-      the paired ATAC and Gene Expression barcode sequences,
-      ATAC and Gene Expression QC metrics for that barcode,
-      as well as whether this barcode was identified as a
-      cell-associated partition by the pipeline.
+      ATAC and RNA read count summaries
+      generated for every barcode observed
+      in the experiment. The columns contain
+      the paired ATAC and Gene Expression
+      barcode sequences, ATAC and Gene
+      Expression QC metrics for that barcode,
+      as well as whether this barcode was
+      identified as a cell-associated
+      partition by the pipeline.
 
-  gex_possorted_genome_bam_bai:
+  rna_possorted_genome_bam_bai:
     type: File
-    outputSource: generate_counts_matrix/gex_possorted_genome_bam_bai
-    label: "Aligned to the genome indexed reads GEX BAM+BAI files"
+    outputSource: generate_counts_matrix/rna_possorted_genome_bam_bai
+    label: "RNA reads"
     doc: |
-      GEX position-sorted reads aligned to the genome and transcriptome
-      annotated with barcode information in BAM format
+      Genome track of RNA reads aligned to
+      the reference genome. Each read has
+      a 10x Chromium cellular (associated
+      with a 10x Genomics gel bead) barcode
+      and molecular barcode information
+      attached.
+    "sd:visualPlugins":
+    - igvbrowser:
+        tab: "IGV Genome Browser"
+        id: "igvbrowser"
+        type: "alignment"
+        format: "bam"
+        name: "RNA reads"
+        displayMode: "SQUISHED"
 
   atac_possorted_genome_bam_bai:
     type: File
     outputSource: generate_counts_matrix/atac_possorted_genome_bam_bai
-    label: "Aligned to the genome indexed reads ATAC BAM+BAI files"
+    label: "ATAC reads"
     doc: |
-      ATAC position-sorted reads aligned to the genome annotated with
-      barcode information in BAM format
+      Genome track of ATAC reads aligned to
+      the reference genome. Each read has
+      a 10x Chromium cellular (associated
+      with a 10x Genomics gel bead) barcode
+      and mapping information stored in TAG
+      fields.
+    "sd:visualPlugins":
+    - igvbrowser:
+        tab: "IGV Genome Browser"
+        id: "igvbrowser"
+        type: "alignment"
+        format: "bam"
+        name: "ATAC reads"
+        displayMode: "SQUISHED"
 
   filtered_feature_bc_matrix_folder:
     type: File
     outputSource: compress_filtered_feature_bc_matrix_folder/compressed_folder
-    label: "Compressed folder with filtered feature-barcode matrices"
+    label: "Filtered feature barcode matrix, MEX"
     doc: |
-      Filtered feature barcode matrix stored as a CSC sparse matrix in MEX format.
-      The rows consist of all the gene and peak features concatenated together
-      (identical to raw feature barcode matrix) and the columns are restricted to
-      those barcodes that are identified as cells.
+      Filtered feature barcode matrix stored
+      as a CSC sparse matrix in MEX format.
+      The rows consist of all the gene and
+      peak features concatenated together
+      (identical to raw feature barcode
+      matrix) and the columns are restricted
+      to those barcodes that are identified
+      as cells.
 
   filtered_feature_bc_matrix_h5:
     type: File
     outputSource: generate_counts_matrix/filtered_feature_bc_matrix_h5
-    label: "Filtered feature-barcode matrices in HDF5 format"
+    label: "Filtered feature barcode matrix, HDF5"
     doc: |
-      Filtered feature barcode matrix stored as a CSC sparse matrix in hdf5 format.
-      The rows consist of all the gene and peak features concatenated together
-      (identical to raw feature barcode matrix) and the columns are restricted to
-      those barcodes that are identified as cells.
+      Filtered feature barcode matrix stored
+      as a CSC sparse matrix in hdf5 format.
+      The rows consist of all the gene and
+      peak features concatenated together
+      (identical to raw feature barcode
+      matrix) and the columns are restricted
+      to those barcodes that are identified
+      as cells.
 
   raw_feature_bc_matrices_folder:
     type: File
     outputSource: compress_raw_feature_bc_matrices_folder/compressed_folder
-    label: "Compressed folder with unfiltered feature-barcode matrices"
+    label: "Raw feature barcode matrix, MEX"
     doc: |
-      Raw feature barcode matrix stored as a CSC sparse matrix in MEX format.
-      The rows consist of all the gene and peak features concatenated together
-      and the columns consist of all observed barcodes with non-zero signal for
+      Raw feature barcode matrix stored as
+      a CSC sparse matrix in MEX format.
+      The rows consist of all the gene and
+      peak features concatenated together
+      and the columns consist of all observed
+      barcodes with non-zero signal for
       either ATAC or gene expression.
 
   raw_feature_bc_matrices_h5:
     type: File
     outputSource: generate_counts_matrix/raw_feature_bc_matrices_h5
-    label: "Unfiltered feature-barcode matrices in HDF5 format"
+    label: "Raw feature barcode matrix, HDF5"
     doc: |
-      Raw feature barcode matrix stored as a CSC sparse matrix in hdf5 format.
-      The rows consist of all the gene and peak features concatenated together
-      and the columns consist of all observed barcodes with non-zero signal for
+      Raw feature barcode matrix stored as
+      a CSC sparse matrix in hdf5 format.
+      The rows consist of all the gene and
+      peak features concatenated together
+      and the columns consist of all observed
+      barcodes with non-zero signal for
       either ATAC or gene expression.
 
   secondary_analysis_report_folder:
     type: File
     outputSource: compress_secondary_analysis_report_folder/compressed_folder
-    label: "Compressed folder with secondary analysis results"
+    label: "Secondary analysis"
     doc: |
-      Various secondary analyses that utilize the ATAC data, the GEX data, and their
-      linkage: dimensionality reduction and clustering results for the ATAC and GEX
-      data, differential expression, and differential accessibility for all clustering
-      results above and linkage between ATAC and GEX data.
+      Various secondary analyses that
+      utilize the ATAC, RNA data, and
+      their linkage: dimensionality
+      reduction and clustering results
+      for the ATAC and RNA data,
+      differential expression, and
+      differential accessibility for all
+      clustering results above and linkage
+      between ATAC and RNA data.
 
-  gex_molecule_info_h5:
+  rna_molecule_info_h5:
     type: File
-    outputSource: generate_counts_matrix/gex_molecule_info_h5
-    label: "GEX molecule-level information for aggregating samples into larger datasets"
+    outputSource: generate_counts_matrix/rna_molecule_info_h5
+    label: "RNA molecule-level data"
     doc: |
-      Count and barcode information for every GEX molecule observed in the experiment
-      in hdf5 format
+      Count and barcode information for
+      every RNA molecule observed in the
+      experiment in hdf5 format
 
   loupe_browser_track:
     type: File
     outputSource: generate_counts_matrix/loupe_browser_track
-    label: "Loupe Browser visualization file with all the analysis outputs"
+    label: "Loupe Browser visualization"
     doc: |
-      Loupe Browser visualization file with all the analysis outputs
+      Loupe Browser visualization file
+      with all the analysis outputs
 
   atac_fragments_file:
     type: File
     outputSource: generate_counts_matrix/atac_fragments_file
-    label: "Count and barcode information for every ATAC fragment in TSV format"
+    label: "ATAC fragments"
     doc: |
-      Count and barcode information for every ATAC fragment observed in
+      Count and barcode information for
+      every ATAC fragment observed in
       the experiment in TSV format.
   
   atac_peaks_bed_file:
     type: File
     outputSource: generate_counts_matrix/atac_peaks_bed_file
-    label: "Identified peaks in BED format"
+    label: "ATAC peaks"
     doc: |
-      Locations of open-chromatin regions identified in this sample.
-      These regions are referred to as "peaks".
+      Genome track of open-chromatin
+      regions identified as peaks.
+    "sd:visualPlugins":
+    - igvbrowser:
+        tab: "IGV Genome Browser"
+        id: "igvbrowser"
+        type: "annotation"
+        name: "ATAC peaks"
+        displayMode: "COLLAPSE"
+        height: 40
 
   atac_cut_sites_bigwig_file:
     type: File
     outputSource: generate_counts_matrix/atac_cut_sites_bigwig_file
-    label: "Observed transposition sites in bigWig format"
+    label: "ATAC transposition counts"
     doc: |
-      Genome track of observed transposition sites in the experiment
-      smoothed at a resolution of 400 bases in BIGWIG format.
-    'sd:visualPlugins':
+      Genome track of observed transposition
+      sites in the experiment smoothed at a
+      resolution of 400 bases.
+    "sd:visualPlugins":
     - igvbrowser:
-        tab: 'IGV Genome Browser'
-        id: 'igvbrowser'
-        type: 'wig'
-        name: "ATAC cut sites"
+        tab: "IGV Genome Browser"
+        id: "igvbrowser"
+        type: "wig"
+        name: "ATAC transposition counts"
         height: 120
 
   atac_peak_annotation_file:
     type: File
     outputSource: generate_counts_matrix/atac_peak_annotation_file
-    label: "Annotations of peaks based on genomic proximity in TSV format"
+    label: "ATAC peaks annotations"
     doc: |
-      Annotations of peaks based on genomic proximity alone.
-      Note that these are not functional annotations and they
-      do not make use of linkage with GEX data.
+      Annotations of peaks based on
+      genomic proximity alone. Note,
+      that these are not functional
+      annotations and they do not make
+      use of linkage with RNA data.
 
   generate_counts_matrix_stdout_log:
     type: File
     outputSource: generate_counts_matrix/stdout_log
-    label: stdout log generated by cellranger-arc count
+    label: "Output log, cellranger-arc count step"
     doc: |
       stdout log generated by cellranger-arc count
 
   generate_counts_matrix_stderr_log:
     type: File
     outputSource: generate_counts_matrix/stderr_log
-    label: stderr log generated by cellranger-arc count
+    label: "Error log, cellranger-arc count step"
     doc: |
       stderr log generated by cellranger-arc count
 
-  collected_statistics:
+  collected_statistics_yaml:
     type: File
-    outputSource: collect_statistics/collected_statistics
-    label: "Collected statistics in Markdown format"
-    doc: "Collected statistics in Markdown format"
-    'sd:visualPlugins':
-    - markdownView:
-        tab: 'Overview'
-
-  compressed_html_data_folder:
-    type: File
-    outputSource: compress_html_data_folder/compressed_folder
-    label: "Compressed folder with CellBrowser formatted results"
+    outputSource: collect_statistics/collected_statistics_yaml
+    label: "Collected statistics, YAML"
     doc: |
-      Compressed folder with CellBrowser formatted results
+      Collected statistics in YAML format
+
+  collected_statistics_md:
+    type: File
+    outputSource: collect_statistics/collected_statistics_md
+    label: "Collected statistics"
+    doc: |
+      Collected statistics in Markdown format
+    "sd:visualPlugins":
+    - markdownView:
+        tab: "Overview"
+
+  collected_statistics_tsv:
+    type: File
+    outputSource: collect_statistics/collected_statistics_tsv
+    label: "Collected statistics"
+    doc: |
+      Collected statistics in TSV format
+    "sd:visualPlugins":
+    - tableView:
+        vertical: true
+        tab: "Overview"
 
   html_data_folder:
     type: Directory
     outputSource: cellbrowser_build/html_data
-    label: "Folder with not compressed CellBrowser formatted results"
+    label: "UCSC Cell Browser data"
     doc: |
-      Folder with not compressed CellBrowser formatted results
-
-  cellbrowser_report:
-    type: File
-    outputSource: cellbrowser_build/index_html_file
-    label: "CellBrowser formatted Cellranger report"
-    doc: |
-      CellBrowser formatted Cellranger report
-    'sd:visualPlugins':
-    - linkList:
-        tab: 'Overview'
-        target: "_blank"
+      Directory with UCSC Cell Browser
+      data
 
 
 steps:
 
-  extract_gex_fastq_r1:
+  extract_rna_fastq_r1:
     run: ../tools/extract-fastq.cwl
     in:
-      output_prefix:  
-        default: "gex_read_1"
-      compressed_file: gex_fastq_file_r1
+      compressed_file: rna_fastq_file_r1
+      output_prefix:
+        default: "rna_read_1"
     out:
     - fastq_file
 
-  extract_gex_fastq_r2:
+  extract_rna_fastq_r2:
     run: ../tools/extract-fastq.cwl
     in:
-      output_prefix:  
-        default: "gex_read_2"
-      compressed_file: gex_fastq_file_r2
+      compressed_file: rna_fastq_file_r2
+      output_prefix:
+        default: "rna_read_2"
     out:
     - fastq_file
 
   extract_atac_fastq_r1:
     run: ../tools/extract-fastq.cwl
     in:
-      output_prefix: 
-        default: "atac_read_1"
       compressed_file: atac_fastq_file_r1
+      output_prefix:
+        default: "atac_read_1"
     out:
     - fastq_file
 
   extract_atac_fastq_r2:
     run: ../tools/extract-fastq.cwl
     in:
+      compressed_file: atac_fastq_file_r2
       output_prefix:
         default: "atac_read_2"
-      compressed_file: atac_fastq_file_r2
     out:
     - fastq_file
 
   extract_atac_fastq_r3:
     run: ../tools/extract-fastq.cwl
     in:
-      output_prefix: 
-        default: "atac_read_3"
       compressed_file: atac_fastq_file_r3
+      output_prefix:
+        default: "atac_read_3"
     out:
     - fastq_file
 
-
-  run_fastqc_for_gex_fastq_r1:
+  run_fastqc_for_rna_fastq_r1:
     run: ../tools/fastqc.cwl
     in:
-      reads_file: extract_gex_fastq_r1/fastq_file
-      threads: threads
+      reads_file: extract_rna_fastq_r1/fastq_file
+      threads:
+        source: threads
+        valueFrom: $(parseInt(self))
     out:
     - html_file
 
-  run_fastqc_for_gex_fastq_r2:
+  run_fastqc_for_rna_fastq_r2:
     run: ../tools/fastqc.cwl
     in:
-      reads_file: extract_gex_fastq_r2/fastq_file
-      threads: threads
+      reads_file: extract_rna_fastq_r2/fastq_file
+      threads:
+        source: threads
+        valueFrom: $(parseInt(self))
     out:
     - html_file
 
@@ -430,7 +553,9 @@ steps:
     run: ../tools/fastqc.cwl
     in:
       reads_file: extract_atac_fastq_r1/fastq_file
-      threads: threads
+      threads:
+        source: threads
+        valueFrom: $(parseInt(self))
     out:
     - html_file
 
@@ -438,7 +563,9 @@ steps:
     run: ../tools/fastqc.cwl
     in:
       reads_file: extract_atac_fastq_r2/fastq_file
-      threads: threads
+      threads:
+        source: threads
+        valueFrom: $(parseInt(self))
     out:
     - html_file
 
@@ -446,36 +573,39 @@ steps:
     run: ../tools/fastqc.cwl
     in:
       reads_file: extract_atac_fastq_r3/fastq_file
-      threads: threads
+      threads:
+        source: threads
+        valueFrom: $(parseInt(self))
     out:
     - html_file
-
 
   generate_counts_matrix:
     run: ../tools/cellranger-arc-count.cwl
     in:
-      gex_fastq_file_r1: extract_gex_fastq_r1/fastq_file
-      gex_fastq_file_r2: extract_gex_fastq_r2/fastq_file
+      rna_fastq_file_r1: extract_rna_fastq_r1/fastq_file
+      rna_fastq_file_r2: extract_rna_fastq_r2/fastq_file
       atac_fastq_file_r1: extract_atac_fastq_r1/fastq_file
       atac_fastq_file_r2: extract_atac_fastq_r2/fastq_file
       atac_fastq_file_r3: extract_atac_fastq_r3/fastq_file
       indices_folder: indices_folder
       exclude_introns: exclude_introns
-      threads: threads
+      threads:
+        source: threads
+        valueFrom: $(parseInt(self))
       memory_limit: memory_limit
       virt_memory_limit: memory_limit
     out:
     - web_summary_report
     - metrics_summary_report
     - barcode_metrics_report
-    - gex_possorted_genome_bam_bai
+    - rna_possorted_genome_bam_bai
     - atac_possorted_genome_bam_bai
     - filtered_feature_bc_matrix_folder
     - filtered_feature_bc_matrix_h5
     - raw_feature_bc_matrices_folder
     - raw_feature_bc_matrices_h5
     - secondary_analysis_report_folder
-    - gex_molecule_info_h5
+    - rna_molecule_info_h5
     - loupe_browser_track
     - atac_fragments_file
     - atac_peaks_bed_file
@@ -506,61 +636,23 @@ steps:
     - compressed_folder
 
   collect_statistics:
-    run:
-      cwlVersion: v1.0
-      class: CommandLineTool
-      hints:
-      - class: DockerRequirement
-        dockerPull: rackspacedot/python37
-      inputs:
-        script:
-          type: string?
-          default: |
-            #!/usr/bin/env python3
-            import sys, csv
-            with open(sys.argv[1], "r") as input_stream:
-              with open("collected_statistics.md", "w") as output_stream:
-                output_stream.write("### Cell Ranger ARC Statistics\n")
-                keys, values = None, None
-                for i, row in enumerate(csv.reader(input_stream)):
-                  if i==0:
-                    keys = row
-                  else:
-                    values = row
-                for k,v in zip(keys, values):
-                  output_stream.write("- "+k+": "+v+"\n")
-          inputBinding:
-            position: 5
-        metrics_summary_report:
-          type: File
-          inputBinding:
-            position: 6
-      outputs:
-        collected_statistics:
-          type: File
-          outputBinding:
-            glob: "*"
-      baseCommand: ["python3", "-c"]
+    run: ../tools/collect-stats-sc-arc-count.cwl
     in:
       metrics_summary_report: generate_counts_matrix/metrics_summary_report
     out:
-    - collected_statistics
+    - collected_statistics_yaml
+    - collected_statistics_tsv
+    - collected_statistics_md
 
   cellbrowser_build:
     run: ../tools/cellbrowser-build-cellranger-arc.cwl
     in:
       secondary_analysis_report_folder: generate_counts_matrix/secondary_analysis_report_folder
       filtered_feature_bc_matrix_folder: generate_counts_matrix/filtered_feature_bc_matrix_folder
+      annotation_gtf_file: annotation_gtf_file
     out:
     - html_data
     - index_html_file
-
-  compress_html_data_folder:
-    run: ../tools/tar-compress.cwl
-    in:
-      folder_to_compress: cellbrowser_build/html_data
-    out:
-    - compressed_folder
 
 
 $namespaces:
@@ -569,9 +661,9 @@ $namespaces:
 $schemas:
 - https://github.com/schemaorg/schemaorg/raw/main/data/releases/11.01/schemaorg-current-http.rdf
 
-s:name: "Cell Ranger ARC Count Gene Expression + ATAC"
-label: "Cell Ranger ARC Count Gene Expression + ATAC"
-s:alternateName: "Counts ATAC and gene expression reads from a single 10x Genomics Cell Ranger Multiome ATAC + Gene Expression library"
+s:name: "Cell Ranger Count (RNA+ATAC)"
+label: "Cell Ranger Count (RNA+ATAC)"
+s:alternateName: "Quantifies single-cell gene expression and chromatin accessibility of the sequencing data from a single 10x Genomics library in a combined manner"
 
 s:downloadUrl: https://raw.githubusercontent.com/datirium/workflows/master/workflows/cellranger-arc-count.cwl
 s:codeRepository: https://github.com/datirium/workflows
@@ -609,5 +701,10 @@ s:creator:
 
 
 doc: |
-  Cell Ranger ARC Count Gene Expression + ATAC
-  ============================================
+  Cell Ranger Count (RNA+ATAC)
+
+  Quantifies single-cell gene expression and chromatin accessibility
+  of the sequencing data from a single 10x Genomics library in a
+  combined manner. The results of this workflow are primarily used in
+  either “Single-Cell Multiome ATAC and RNA-Seq Filtering Analysis”
+  or “Cell Ranger Aggregate (RNA+ATAC)” pipelines.

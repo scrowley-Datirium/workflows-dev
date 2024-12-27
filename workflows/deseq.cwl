@@ -11,31 +11,25 @@ requirements:
 
 'sd:upstream':
   rnaseq_cond_1:
-    - "rnaseq-se.cwl"
-    - "rnaseq-pe.cwl"
-    - "rnaseq-se-dutp.cwl"
-    - "rnaseq-pe-dutp.cwl"
-    - "rnaseq-se-dutp-mitochondrial.cwl"
-    - "rnaseq-pe-dutp-mitochondrial.cwl"
+    - "mirna-mirdeep2-se.cwl"
     - "trim-rnaseq-pe.cwl"
     - "trim-rnaseq-se.cwl"
     - "trim-rnaseq-pe-dutp.cwl"
     - "trim-rnaseq-pe-smarter-dutp.cwl"
     - "trim-rnaseq-se-dutp.cwl"
-    - "trim-quantseq-mrnaseq-se.cwl"
+    - "trim-quantseq-mrnaseq-se-strand-specific.cwl"
+    - "kallisto-quant-pe.cwl"
+    - "trim-rnaseq-pe-ercc.cwl"
   rnaseq_cond_2:
-    - "rnaseq-se.cwl"
-    - "rnaseq-pe.cwl"
-    - "rnaseq-se-dutp.cwl"
-    - "rnaseq-pe-dutp.cwl"
-    - "rnaseq-se-dutp-mitochondrial.cwl"
-    - "rnaseq-pe-dutp-mitochondrial.cwl"
+    - "mirna-mirdeep2-se.cwl"
     - "trim-rnaseq-pe.cwl"
     - "trim-rnaseq-se.cwl"
     - "trim-rnaseq-pe-dutp.cwl"
     - "trim-rnaseq-pe-smarter-dutp.cwl"
     - "trim-rnaseq-se-dutp.cwl"
-    - "trim-quantseq-mrnaseq-se.cwl"
+    - "trim-quantseq-mrnaseq-se-strand-specific.cwl"
+    - "kallisto-quant-pe.cwl"
+    - "trim-rnaseq-pe-ercc.cwl"
 
 
 inputs:
@@ -116,14 +110,6 @@ inputs:
     default: "genes"
     label: "Group by"
     doc: "Grouping method for features: isoforms, genes or common tss"
-
-  rpkm_cutoff:
-    type: float?
-    default: 0
-    label: "Minimum rpkm cutoff. Applied before running DEseq"
-    doc: "Minimum threshold for rpkm filtering. Default: 5"
-    'sd:layout':
-      advanced: true
 
   batch_file:
     type: File?
@@ -227,6 +213,134 @@ inputs:
     'sd:layout':
       advanced: true
 
+  cluster_method:
+    type:
+    - "null"
+    - type: enum
+      symbols:
+      - "row"
+      - "column"
+      - "both"
+      - "none"
+    default: "none"
+    label: "Hopach clustering method to be run on normalized read counts"
+    doc: |
+      Hopach clustering method to be run on normalized read counts for the
+      exploratory visualization analysis. Default: do not run clustering
+    'sd:layout':
+      advanced: true
+
+  row_distance:
+    type:
+    - "null"
+    - type: enum
+      symbols:
+      - "cosangle"
+      - "abscosangle"
+      - "euclid"
+      - "abseuclid"
+      - "cor"
+      - "abscor"
+    default: "cosangle"
+    label: "Distance metric for HOPACH row clustering"
+    doc: |
+      Distance metric for HOPACH row clustering. Ignored if --cluster is not
+      provided. Default: cosangle
+    'sd:layout':
+      advanced: true
+
+  column_distance:
+    type:
+    - "null"
+    - type: enum
+      symbols:
+      - "cosangle"
+      - "abscosangle"
+      - "euclid"
+      - "abseuclid"
+      - "cor"
+      - "abscor"
+    default: "euclid"
+    label: "Distance metric for HOPACH column clustering"
+    doc: |
+      Distance metric for HOPACH column clustering. Ignored if --cluster is not
+      provided. Default: euclid
+    'sd:layout':
+      advanced: true
+      
+  regulation:
+    type:
+      - "null"
+      - type: enum
+        symbols:
+          - "both"
+          - "up"
+          - "down"
+    default: "both"
+    label: "Direction of Differential Expression"
+    inputBinding:
+      prefix: "--regulation"
+    doc: |
+      Direction of differential expression comparison. β is the log2 fold change.
+      - 'both' for both up and downregulated genes. This includes |β| > lfcThreshold (greaterAbs) with two-tailed p-values, and |β| < lfcThreshold (lessAbs) with p-values being the maximum of the upper and lower tests. This option considers both directions of regulation in the comparison between condition2 and condition1.
+      - 'up' for upregulated genes (β > lfcThreshold in condition2 compared to condition1). This identifies genes that are more highly expressed in condition2.
+      - 'down' for downregulated genes (β < -lfcThreshold in condition2 compared to condition1). This identifies genes that are less expressed in condition2.
+      Default: both
+    'sd:layout':
+      advanced: true   
+
+  fdr:
+    type: float?
+    default: 0.1
+    label: "Maximum P-adjusted to show features in the exploratory visualization analysis"
+    doc: |
+      In the exploratory visualization part of the analysis output only features,
+      with adjusted p-value (FDR) not bigger than this value. Also the significance,
+      cutoff used for optimizing the independent filtering. Default: 0.1.
+    'sd:layout':
+      advanced: true
+      
+  lfcthreshold:
+    type: float?
+    default: 0.59
+    label: "Log2 Fold Change Threshold"
+    inputBinding:
+      prefix: "--lfcthreshold"
+    doc: |
+      Log2 fold change threshold for determining significant differential expression.
+      Genes with absolute log2 fold change greater than this threshold will be considered.
+      Default: 0.59 (about 1.5 fold change)
+    'sd:layout':  
+      advanced: true
+  
+  use_lfc_thresh:
+    type: boolean
+    default: true
+    label: "Use lfcthreshold as the null hypothesis value in the results function call"
+    doc: "Use lfcthreshold as the null hypothesis value in the results function call. Default: TRUE"
+    'sd:layout':
+      advanced: true
+      
+  batchcorrection:
+    type:
+      - "null"
+      - type: enum
+        symbols:
+          - "none"
+          - "combatseq"
+          - "limmaremovebatcheffect"
+    default: "combatseq"
+    label: "Batch Correction Method"
+    inputBinding:
+      prefix: "--batchcorrection"
+    doc: |
+      Specifies the batch correction method to be applied.
+      - 'combatseq' applies ComBat_seq at the beginning of the analysis, removing batch effects from the design formula before differential expression analysis.
+      - 'limmaremovebatcheffect' applies removeBatchEffect from the limma package after differential expression analysis, incorporating batch effects into the model during DE analysis.
+      - Default: none
+    'sd:layout':
+      advanced: true
+
   sample_names_cond_1:
     type:
       - "null"
@@ -251,7 +365,7 @@ inputs:
 
   threads:
     type: int?
-    default: 1
+    default: 6
     label: "Number of threads"
     doc: "Number of threads for those steps that support multithreading"
     'sd:layout':
@@ -278,13 +392,33 @@ outputs:
         colors: ["#b3de69"]
         height: 600
         data: [$2, $9, $13]
+  
+  deseq_summary_md:
+    type: File
+    label: "DESeq2 Results Summary"
+    doc: |
+      Markdown file that includes a warning message if batch_file is not provided
+      but batchcorrection is set to "combatseq" or "limmaremovebatcheffect". Additionally,
+      it contains a detailed summary of the DESeq2 analysis results, including total genes
+      with non-zero read count, log fold changes (LFC), outliers, and low count genes.
+    outputSource: deseq/deseq_summary_md
+    "sd:visualPlugins":
+    - markdownView:
+        tab: "Overview"
 
   read_counts_file:
     type: File
-    label: "Normalized read counts in GCT format. Compatible with GSEA"
+    label: "Normalized read counts in GCT format no padj filtering. Compatible with GSEA"
     format: "http://edamontology.org/format_3709"
-    doc: "DESeq generated file of with normalized read counts in GCT format. Compatible with GSEA"
-    outputSource: deseq/read_counts_file
+    doc: "DESeq generated file of all normalized read counts in GCT format. Compatible with GSEA"
+    outputSource: deseq/read_counts_file_all
+
+  read_counts_file_filtered:
+    type: File
+    label: "Normalized read counts in GCT format filtered by padj. Compatible with Morpheus heatmap"
+    format: "http://edamontology.org/format_3709"
+    doc: "DESeq generated file of padjfiltered normalized read counts in GCT format. Compatible with Morpheus heatmap"
+    outputSource: deseq/read_counts_file_filtered
 
   phenotypes_file:
     type: File
@@ -376,25 +510,36 @@ outputs:
     outputSource: make_volcano_plot/html_file
     label: "Volcano Plot"
     doc: |
-      HTML index file with volcano plot data.
+      HTML index file for Volcano Plot
     'sd:visualPlugins':
     - linkList:
         tab: 'Overview'
         target: "_blank"
 
-  volcano_plot_css_file:
-    type: File
-    outputSource: make_volcano_plot/css_file
-    label: "Volcano Plot CSS"
+  volcano_plot_html_data:
+    type: Directory
+    outputSource: make_volcano_plot/html_data
+    label: "Directory html data for Volcano Plot"
     doc: |
-      CSS index file with volcano plot data.
+      Directory html data for Volcano Plot
 
-  volcano_plot_js_file:
+  ma_plot_html_file:
     type: File
-    outputSource: make_volcano_plot/js_file
-    label: "Volcano Plot JS"
+    outputSource: make_ma_plot/html_file
+    label: "MA-plot"
     doc: |
-      JS index file with volcano plot data.
+      HTML index file for MA-plot
+    'sd:visualPlugins':
+    - linkList:
+        tab: 'Overview'
+        target: "_blank"
+
+  ma_plot_html_data:
+    type: Directory
+    outputSource: make_ma_plot/html_data
+    label: "Directory html data for Volcano Plot"
+    doc: |
+      Directory html data for MA-plot
 
   heatmap_html:
     type: File
@@ -467,32 +612,36 @@ steps:
       treated_name: alias_cond_2
       untreated_sample_names: sample_names_cond_1
       treated_sample_names: sample_names_cond_2
-      rpkm_cutoff: rpkm_cutoff
       batch_file: batch_file
       cluster_method:
         source: cluster_method
         valueFrom: $(self=="none"?null:self)
       row_distance: row_distance
       column_distance: column_distance
-      center_row: center_row
-      maximum_padj: maximum_padj
+      fdr: fdr
       threads: threads
+      lfcthreshold: lfcthreshold
+      use_lfc_thresh: use_lfc_thresh
+      regulation: regulation
+      batchcorrection: batchcorrection
     out:
       - diff_expr_file
+      - deseq_summary_md
       - plot_lfc_vs_mean
       - gene_expr_heatmap
       - plot_pca
       - plot_lfc_vs_mean_pdf
       - gene_expr_heatmap_pdf
       - plot_pca_pdf
-      - read_counts_file
+      - read_counts_file_all
+      - read_counts_file_filtered
       - phenotypes_file
       - mds_plot_html
       - stdout_log
       - stderr_log
 
   make_volcano_plot:
-    run: ../tools/volcanot-plot.cwl
+    run: ../tools/volcano-plot.cwl
     in:
       diff_expr_file: deseq/diff_expr_file
       x_axis_column:
@@ -512,14 +661,37 @@ steps:
               }
           }
     out:
-      - html_file
-      - css_file
-      - js_file
+    - html_data
+    - html_file
+
+  make_ma_plot:
+    run: ../tools/ma-plot.cwl
+    in:
+      diff_expr_file: deseq/diff_expr_file
+      x_axis_column:
+        default: "baseMean"
+      y_axis_column:
+        default: "log2FoldChange"
+      label_column:
+        source: group_by
+        valueFrom: |
+          ${
+              if (self == "isoforms") {
+                return "RefseqId";
+              } else if (self == "genes") {
+                return "GeneId";
+              } else {
+                return "GeneId";
+              }
+          }
+    out:
+    - html_data
+    - html_file
 
   morpheus_heatmap:
     run: ../tools/morpheus-heatmap.cwl
     in:
-     read_counts_gct: deseq/read_counts_file
+     read_counts_gct: deseq/read_counts_file_filtered
     out:
     - heatmap_html
     - stdout_log
