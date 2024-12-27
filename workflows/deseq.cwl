@@ -341,7 +341,7 @@ outputs:
         tab: "Overview"
         label: "Link to interactive Volcano Plot"
         url: "https://scidap.com/vp/volcano"
-        query_eval_string: `data_file=${this.qrGetFileLink('diff_expr_file')}&data_col_name=GeneId&x_col=log2FoldChange&y_col=padj`
+        query_eval_string: "`data_file=${this.qrGetFileLink('diff_expr_file')}&data_col_name=GeneId&x_col=log2FoldChange&y_col=padj`"
 
   
   deseq_summary_md:
