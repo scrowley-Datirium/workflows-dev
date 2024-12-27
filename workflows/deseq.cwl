@@ -213,7 +213,7 @@ inputs:
     'sd:layout':
       advanced: true
 
-  cluster_method:
+  cluster_method: 
     type:
     - "null"
     - type: enum
